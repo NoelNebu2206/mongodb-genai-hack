@@ -180,7 +180,30 @@ MODEL_DIR = "/model"
                 volumes={'/data': volume},
                 secrets=[modal.Secret.from_name("nomic-key")],
                 )
-def get_git_data(github_url:str):
+def get_doc_embeddings(git_contents:[]):
+    import os
+    import nomic
+    from nomic import embed
+    nomic_key = os.environ["NOMIC_API_KEY"]
+    cohere_key = os.environ["COHERE_API_KEY"]
+    nomic.login(nomic_key)
+    output = embed.text(
+        texts=[file['documentation'] for file in git_contents],
+        model='nomic-embed-text-v1.5',
+        task_type='search_document',
+        dimensionality=512,
+    )
+    for i,embedding in enumerate(output["embeddings"]):
+        git_contents[i]['doc_embedding'] = embedding
+    print(git_contents[0].keys())
+    print(f" len of git_content: {len(git_contents)}")
+    return git_contents
+    
+@stub.function(image=image,
+                volumes={'/data': volume},
+                secrets=[modal.Secret.from_name("nomic-key")],
+                )
+def get_git_data(github_url='https://github.com/anubhavghildiyal/Backdoor_Attack_DNN.git'):
     import subprocess
     import os
     import nomic
@@ -252,13 +275,32 @@ def get_git_data(github_url:str):
 print('bye')
 @stub.local_entrypoint()
 def run():
+    import os
     print('AG: inside local entrypoint...')
     
-    github_repo = "https://github.com/anubhavghildiyal/ML_for_cybersec_F23_square_attack"
+    github_repo = "https://github.com/anubhavghildiyal/Backdoor_Attack_DNN.git"
 
     ##Call modal function remotely to clone github on volume
-    git_contents = get_git_data.remote(github_repo)
-    
+    #git_contents = get_git_data.remote(github_repo)
+    git_contents = get_git_data.remote()
+#     git_contents = [
+#     {
+#         "path": "/path/to/file1",
+#         "code": "def hello():\n    print('Hello, world!')",
+#         "documentation": "This is a function that prints 'Hello, world!'"
+#     },
+#     {
+#         "path": "/path/to/file2",
+#         "code": "print('This is some code.')",
+#         "documentation": "This code prints a message."
+#     },
+#     {
+#         "path": "/path/to/file3",
+#         "code": "for i in range(5):\n    print(i)",
+#         "documentation": "This code prints numbers from 0 to 4."
+#     }
+# ]
+
     # Create chatbot instance
     chatbot = CohereChatbot()
 
@@ -266,10 +308,10 @@ def run():
     for i, file in enumerate(git_contents):
         git_contents[i]['documentation'] = chatbot.generate_documentation.remote(file)
     
-    print(git_contents[0].keys())
-    print(git_contents[0]['path'])
-    print(git_contents[0]['code'])
-    print(git_contents[0]['documentation'])
+    git_contents = get_doc_embeddings.remote(git_contents)
+    
+    # print(git_contents[0]['code'])
+    # print(git_contents[0]['documentation'])
     #generate_code_embeddings.remote(git_contents)
     print('AG: done run...')
     

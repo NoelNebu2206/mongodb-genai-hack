@@ -1,6 +1,6 @@
 #import cohere
 import os
-from modal import Image, Stub, method, enter
+from modal import Image, Stub, method, enter, Secret
 from modal_image import image, stub
 #stub = Stub(name="MongoTest")
 
@@ -13,15 +13,15 @@ from modal_image import image, stub
 # )
 
 #@stub.cls(image = llm_image, gpu="T4", container_idle_timeout=300)
-@stub.cls(image = image, gpu="T4", container_idle_timeout=300)
+@stub.cls(image = image, gpu="T4", container_idle_timeout=300, 
+        secrets=[Secret.from_name("nomic-key")],)
 class CohereChatbot:
     @enter()
     #def start(self, model='command-r', max_tokens=4000, temperature=0.5):
     def start(self): 
         import cohere
-        api_key = "AtPKXCoEnTZlZdO2ntfu45juRMYkNtAvZdWssjWS"
-        
-        self.client = cohere.Client(api_key)
+        import os
+        self.client = cohere.Client(os.environ["COHERE_API_KEY"])
         self.model = 'command-r'
         self.max_tokens = 4000
         self.temperature = 0.5
