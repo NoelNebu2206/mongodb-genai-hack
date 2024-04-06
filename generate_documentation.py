@@ -1,18 +1,8 @@
 import cohere
-import os
-from modal import Image, Stub, method, enter
+from modal import method, enter
+from modal_image import image, stub
 
-stub = Stub(name="MongoTest")
-
-llm_image = (
-    Image.debian_slim(python_version="3.11")
-    .pip_install(
-        "cohere",
-          # Add anthropic library
-    )
-)
-
-@stub.cls(image = llm_image, gpu="T4", container_idle_timeout=300)
+@stub.cls(image = image, gpu="T4", container_idle_timeout=300)
 class CohereChatbot:
     @enter()
     #def start(self, model='command-r', max_tokens=4000, temperature=0.5):
