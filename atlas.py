@@ -1,6 +1,6 @@
 from modal import Image, Stub, method, enter
 
-stub = Stub(name="quillman")
+stub = Stub(name="MongoTest")
 
 atlas_image = (
     Image.debian_slim(python_version="3.11")
