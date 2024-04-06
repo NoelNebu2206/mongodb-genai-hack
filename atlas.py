@@ -1,17 +1,7 @@
-from modal import Image, Stub, method, enter
+from modal import method, enter
+from modal_image import image, stub
 
-stub = Stub(name="MongoTest")
-
-atlas_image = (
-    Image.debian_slim(python_version="3.11")
-    .pip_install(
-        "python-dotenv==1.0.0",
-        "pymongo==4.6.2",
-          # Add anthropic library
-    )
-)
-
-@stub.cls(image = atlas_image, gpu="T4", container_idle_timeout=300)
+@stub.cls(image = image, gpu="T4", container_idle_timeout=300)
 class AtlasClient ():
     @enter()
     def enter(self):
@@ -21,22 +11,26 @@ class AtlasClient ():
         Raises:
         - Exception: If the 'ATLAS_URI' is not found in the .env file, indicating that the connection URI is not set.
         """
-        """from dotenv import find_dotenv, dotenv_values"""
-        """from pymongo import MongoClient"""
+        
+        """atlas_uri = os.getenv('ATLAS_URI')
+        if not atlas_uri:
+            raise Exception("'ATLAS_URI' environment variable is required.")"""
+        
+        from pymongo import MongoClient
+        from urllib.parse import quote_plus
 
-        """# Load settings from .env file
-        config = dotenv_values(find_dotenv())
-        ATLAS_URI = config.get('ATLAS_URI')
+        self.client = None
 
-        if not ATLAS_URI:
-            raise Exception ("'ATLAS_URI' is not set.  Please set it above to continue...")
-        """"""
+        username = "ys5250"
+        password = "letsHack@1997"  # Example password with special characters
+        encoded_username = quote_plus(username)
+        encoded_password = quote_plus(password)
+
+        uri = f"mongodb+srv://{encoded_username}:{encoded_password}@mongogenai.d2rck3r.mongodb.net/"
+
         # Initialize MongoClient with the Atlas connection string
-        self.client = MongoClient("mongodb+srv://ys5250:letsHack@1997@mongogenai.d2rck3r.mongodb.net/")
-
-        # Attempt to ping the MongoDB server
-        if self.client.admin.command('ping'):
-            print('Connected to Atlas instance! We are good to go!')"""
+        self.client = MongoClient(uri)
+        print('AtlasClient initialized with URI from environment variable.')
 
     @method()
     def insert_documents(self, database_name, collection_name, documents):
@@ -52,8 +46,10 @@ class AtlasClient ():
         Returns:
         - result: Result of the bulk insert operation.
         """
-        from pymongo import MongoClient
+        """from pymongo import MongoClient
         from urllib.parse import quote_plus
+
+        self.client = None
 
         username = "ys5250"
         password = "letsHack@1997"  # Example password with special characters
@@ -64,22 +60,26 @@ class AtlasClient ():
 
         # Initialize MongoClient with the Atlas connection string
         self.client = MongoClient(uri)
+        print('AtlasClient initialized with URI from environment variable.')
+        """
 
-         # Attempt to ping the MongoDB server
-        if self.client.admin.command('ping'):
-            print('Connected to Atlas instance! We are good to go!')
+        # Ensure the MongoClient is properly initialized and connected
+        if not self.client:
+            raise Exception("MongoClient is not initialized. Call enter() method first.")
 
-        self.db = self.client[database_name]
-        self.collection = self.db[collection_name]
+        # Access the database and collection
+        db = self.client[database_name]
+        collection = db[collection_name]
 
         try:
             # Insert documents into the collection
-            result = self.collection.insert_many(documents)
-            print(f"Inserted {len(result.inserted_ids)} documents into '{self.database_name}.{self.collection_name}'")
+            result = collection.insert_many(documents)
+            print(f"Inserted {len(result.inserted_ids)} documents into '{database_name}.{collection_name}'")
             return result
         except Exception as e:
             print(f"An error occurred: {e}")
             return None
+
 
     ## A quick way to test if we can connect to Atlas instance
     @method()
@@ -96,6 +96,7 @@ class AtlasClient ():
         items = list(collection.find(filter=filter, limit=limit))
         return items
 
+    @method()
     def vector_search(self, collection_name, index_name, embedding_vector):
         """
         Perform a vector search on a specified collection in MongoDB, comparing a given vector 
@@ -114,6 +115,23 @@ class AtlasClient ():
         - This function is designed to return as many relevant results as possible based on the query vector. The actual number of returned documents is subject to MongoDB's limits on response size and internal handling of vector search queries.
         - The effectiveness of the search depends on the configuration of the Atlas Search index specified by `index_name`, particularly how it's set up to handle vector searches for the "documentation" field.
         """
+        """from pymongo import MongoClient
+        from urllib.parse import quote_plus
+
+        self.client = None
+
+        username = "ys5250"
+        password = "letsHack@1997"  # Example password with special characters
+        encoded_username = quote_plus(username)
+        encoded_password = quote_plus(password)
+
+        uri = f"mongodb+srv://{encoded_username}:{encoded_password}@mongogenai.d2rck3r.mongodb.net/"
+
+        # Initialize MongoClient with the Atlas connection string
+        self.client = MongoClient(uri)
+        print('AtlasClient initialized with URI from environment variable.')
+        """
+
         collection = self.database[collection_name]
         results = collection.aggregate([
             {
