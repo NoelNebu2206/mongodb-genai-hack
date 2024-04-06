@@ -1,13 +1,27 @@
 import cohere
 import os
+from modal import Image, Stub, method, enter
 
+stub = Stub(name="MongoTest")
+
+llm_image = (
+    Image.debian_slim(python_version="3.11")
+    .pip_install(
+        "cohere",
+          # Add anthropic library
+    )
+)
+
+@stub.cls(image = llm_image, gpu="T4", container_idle_timeout=300)
 class CohereChatbot:
-    def __init__(self, api_key, model='command-r', max_tokens=4000, temperature=0.5):
+    @enter()
+    def start(self, api_key, model='command-r', max_tokens=4000, temperature=0.5):
         self.client = cohere.Client(api_key)
         self.model = model
         self.max_tokens = max_tokens
         self.temperature = temperature
 
+    @method()
     def chat(self, message, chat_history=[]):
         response = self.client.chat(
             chat_history=chat_history,
@@ -18,6 +32,7 @@ class CohereChatbot:
         )
         return response.text
 
+    @method()
     def generate_documentation(self, code_content, user_query="Generate documentation for this code."):
         prompt = f"""
         You are an assistant for code documentation tasks. Use the following code content to generate documentation for the code.
@@ -38,13 +53,14 @@ class CohereChatbot:
             """
         return self.chat(prompt)
 
-# Example usage
-if __name__ == "__main__":
+# For local testing
+@stub.local_entrypoint()
+def main():
     cohere_api_key = os.getenv('COHERE_API_KEY')
     code = "def add(a, b): return a + b"
 
     chatbot = CohereChatbot(api_key=cohere_api_key)
-    documentation = chatbot.generate_documentation(code)
+    documentation = chatbot.generate_documentation.remote(code)
     print(documentation)
 
 
