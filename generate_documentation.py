@@ -15,11 +15,15 @@ llm_image = (
 @stub.cls(image = llm_image, gpu="T4", container_idle_timeout=300)
 class CohereChatbot:
     @enter()
-    def start(self, api_key, model='command-r', max_tokens=4000, temperature=0.5):
+    #def start(self, model='command-r', max_tokens=4000, temperature=0.5):
+    def start(self): 
+
+        #api_key = ADD YOUR API KEY HERE
+        
         self.client = cohere.Client(api_key)
-        self.model = model
-        self.max_tokens = max_tokens
-        self.temperature = temperature
+        self.model = 'command-r'
+        self.max_tokens = 4000
+        self.temperature = 0.5
 
     @method()
     def chat(self, message, chat_history=[]):
@@ -51,15 +55,14 @@ class CohereChatbot:
             - Provide usage examples that show how to run the code, including any necessary command-line arguments or configuration settings.
             \nResponse:
             """
-        return self.chat(prompt)
+        return self.chat.remote(prompt)
 
 # For local testing
 @stub.local_entrypoint()
 def main():
-    cohere_api_key = os.getenv('COHERE_API_KEY')
+    #cohere_api_key = os.getenv('COHERE_API_KEY')
     code = "def add(a, b): return a + b"
-
-    chatbot = CohereChatbot(api_key=cohere_api_key)
+    chatbot = CohereChatbot()
     documentation = chatbot.generate_documentation.remote(code)
     print(documentation)
 
