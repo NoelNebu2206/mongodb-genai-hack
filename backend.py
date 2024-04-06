@@ -182,6 +182,7 @@ def get_git_data(github_url:str):
     import subprocess
     import os
     import nomic
+    from nomic import embed
     
     print('AG: inside get_git_data')
     # Run the git clone command
@@ -218,32 +219,24 @@ def get_git_data(github_url:str):
         Through his adventures, Max taught the townspeople the importance of kindness, friendship, and the joy of exploring the world around them. And so, Max's story became a beloved tale in the town, inspiring everyone to embrace life with the same enthusiasm and curiosity as their furry friend."""
         
     nomic_key = os.environ["NOMIC_API_KEY"]
-    print(nomic_key)
-    curl_command = [
-    "curl",
-    "https://api-atlas.nomic.ai/v1/embedding/text",
-    "-H",
-    "Authorization: Bearer {nomic_key}",
-    "-H",
-    "Content-Type: application/json",
-    "-d",
-    '{ "model": "nomic-embed-text-v1", "texts": ["sample_file_data"]}'
-    ]
+    nomic.login(nomic_key)
     
-    print('AG: starting curl')
-    # Run the curl command and capture the output
-    result = subprocess.run(curl_command, shell=True, stdout=subprocess.PIPE)
+    output = embed.text(
+        texts=[file['content'] for file in git_content],
+        model='nomic-embed-text-v1.5',
+        task_type='search_document',
+        dimensionality=512,
+    )
 
-    # Store the output in a variable
-    output = result.stdout.decode('utf-8')
-
-    # Print the output
     print(output)
-    print(type(output))
     print(len(output))
-    # Run the curl command
-    #subprocess.run(curl_command, shell=True)
-    
+    print(len(output['embeddings']))
+    print(len(output['embeddings'][0]))
+    for i,embedding in enumerate(output['embeddings']):
+        git_content[i]['embedding'] = embedding
+    print(f"git_content len: {len(git_content)}")
+    print(git_content[0].keys())
+
     volume.commit()
     
     print('AG: git clone done')
