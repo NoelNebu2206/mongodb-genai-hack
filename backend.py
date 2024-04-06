@@ -1,3 +1,5 @@
+##nomic-embed-code
+
 # ---
 # args: ["--query", "How many oil barrels were released from reserves"]
 # ---
@@ -20,9 +22,13 @@
 # A `docsearch` global variable is also declared to facilitate caching a slow operation in the code below.
 from pathlib import Path
 import modal
-from modal_image import image
+from modal_image import image, stub
 from modal import Image, Secret, Stub, web_endpoint, Volume
-print('hello')
+from generate_documentation import CohereChatbot
+
+import NomicEmbed
+
+
 #image = Image.debian_slim(python_version="3.11").pip_install("modal==0.62.21", "nomic").apt_install("git")
 # .run_commands(
 #     "cd /root",
@@ -45,18 +51,14 @@ print('hello')
 #     "tiktoken==0.3.0",
 # )
 
-print('hello')
-stub = Stub(
-    name="MongoTest",
-    image=image,
-    #secrets=[Secret.from_name("openai-secret")],
-)
+
+
 #docsearch = None  # embedding index that's relatively expensive to compute, so caching with global var.
-print('hello')
+
 volume = Volume.from_name(
     "repo_data", create_if_missing=True
 )
-print('hello')
+
 MODEL_DIR = "/model"
 # ## Constructing the Q&A chain
 #
@@ -178,7 +180,30 @@ MODEL_DIR = "/model"
                 volumes={'/data': volume},
                 secrets=[modal.Secret.from_name("nomic-key")],
                 )
-def get_git_data(github_url:str):
+def get_doc_embeddings(git_contents:[]):
+    import os
+    import nomic
+    from nomic import embed
+    nomic_key = os.environ["NOMIC_API_KEY"]
+    cohere_key = os.environ["COHERE_API_KEY"]
+    nomic.login(nomic_key)
+    output = embed.text(
+        texts=[file['documentation'] for file in git_contents],
+        model='nomic-embed-text-v1.5',
+        task_type='search_document',
+        dimensionality=512,
+    )
+    for i,embedding in enumerate(output["embeddings"]):
+        git_contents[i]['doc_embedding'] = embedding
+    print(git_contents[0].keys())
+    print(f" len of git_content: {len(git_contents)}")
+    return git_contents
+    
+@stub.function(image=image,
+                volumes={'/data': volume},
+                secrets=[modal.Secret.from_name("nomic-key")],
+                )
+def get_git_data(github_url='https://github.com/anubhavghildiyal/Backdoor_Attack_DNN.git'):
     import subprocess
     import os
     import nomic
@@ -202,7 +227,7 @@ def get_git_data(github_url:str):
                     file_dict['path'] = file_path
 
                     with open(file_path, 'r') as f:
-                        file_dict['content'] = f.read()
+                        file_dict['code'] = f.read()
                         print(f"AG: {read_file_content.__name__} Contents saved for {file_path}:")
                     git_content.append(file_dict)
                     
@@ -217,22 +242,25 @@ def get_git_data(github_url:str):
         The squirrels welcomed Max with open arms (or rather, open paws), and they quickly became the best of friends. Together, they would explore the woods, play games, and share stories late into the night.
         As the seasons changed, so did Max's adventures. In the winter, he would frolic in the snow with his squirrel friends, while in the summer, they would swim in the nearby creek and bask in the warm sun.
         Through his adventures, Max taught the townspeople the importance of kindness, friendship, and the joy of exploring the world around them. And so, Max's story became a beloved tale in the town, inspiring everyone to embrace life with the same enthusiasm and curiosity as their furry friend."""
-        
+
+    
+    #embeddings = nomicOb.generate_embeddings.remote([file['content'] for file in git_content])
+    # embeddings = nomicOb.generate_embeddings.remote([sample_file_data]  , embedding_model='nomic-embed-text-v1.5', dimensionality=512, task_type='search_document')
+    #embeddings = nomicOb.generate_embeddings.remote([sample_file_data])
+
     nomic_key = os.environ["NOMIC_API_KEY"]
     nomic.login(nomic_key)
     
     output = embed.text(
-        texts=[file['content'] for file in git_content],
+        texts=[file['code'] for file in git_content],
         model='nomic-embed-text-v1.5',
         task_type='search_document',
         dimensionality=512,
     )
 
-    print(output)
-    print(len(output))
-    print(len(output['embeddings']))
-    print(len(output['embeddings'][0]))
-    for i,embedding in enumerate(output['embeddings']):
+    #print(len(output['embeddings']))
+    #print(len(output['embeddings'][0]))
+    for i,embedding in enumerate(output["embeddings"]):
         git_content[i]['embedding'] = embedding
     print(f"git_content len: {len(git_content)}")
     print(git_content[0].keys())
@@ -240,18 +268,51 @@ def get_git_data(github_url:str):
     volume.commit()
     
     print('AG: git clone done')
+    return git_content
     
 
 
 print('bye')
 @stub.local_entrypoint()
 def run():
-    print('AG: starting...')
+    import os
+    print('AG: inside local entrypoint...')
     
-    github_repo = "https://github.com/anubhavghildiyal/ML_for_cybersec_F23_square_attack"
+    github_repo = "https://github.com/anubhavghildiyal/Backdoor_Attack_DNN.git"
 
     ##Call modal function remotely to clone github on volume
-    get_git_data.remote(github_repo)
+    #git_contents = get_git_data.remote(github_repo)
+    git_contents = get_git_data.remote()
+#     git_contents = [
+#     {
+#         "path": "/path/to/file1",
+#         "code": "def hello():\n    print('Hello, world!')",
+#         "documentation": "This is a function that prints 'Hello, world!'"
+#     },
+#     {
+#         "path": "/path/to/file2",
+#         "code": "print('This is some code.')",
+#         "documentation": "This code prints a message."
+#     },
+#     {
+#         "path": "/path/to/file3",
+#         "code": "for i in range(5):\n    print(i)",
+#         "documentation": "This code prints numbers from 0 to 4."
+#     }
+# ]
+
+    # Create chatbot instance
+    chatbot = CohereChatbot()
+
+    #Pass the code of each file to the LLm to get documentation for the code
+    for i, file in enumerate(git_contents):
+        git_contents[i]['documentation'] = chatbot.generate_documentation.remote(file)
+    
+    git_contents = get_doc_embeddings.remote(git_contents)
+    
+    # print(git_contents[0]['code'])
+    # print(git_contents[0]['documentation'])
+    #generate_code_embeddings.remote(git_contents)
     print('AG: done run...')
     
 # ## Test run the CLI
