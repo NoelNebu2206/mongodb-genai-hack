@@ -5,6 +5,9 @@ image = Image.debian_slim(python_version="3.11").pip_install(
      "nomic",
      "cohere",
      "fastapi",
+     "python-dotenv==1.0.0",
+     "pymongo==4.6.2",
+     "boto3",
      ).apt_install("git", "curl")
 
 stub = Stub(

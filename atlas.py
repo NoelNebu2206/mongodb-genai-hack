@@ -168,11 +168,11 @@ class AtlasClient ():
         self.client.close()
 
 # For local testing
-@stub.local_entrypoint()
-def main():
-    model = AtlasClient()
-    dict_list = [
-        {"ingredients": "Sauce", "shop": "TJ"},
-        {"ingredients": "Cheese", "shop": "Target"}]
-    model.insert_documents.remote(collection_name = 'Pizza', database_name = 'Food', documents = dict_list )
+# @stub.local_entrypoint()
+# def main():
+#     model = AtlasClient()
+#     dict_list = [
+#         {"ingredients": "Sauce", "shop": "TJ"},
+#         {"ingredients": "Cheese", "shop": "Target"}]
+#     model.insert_documents.remote(collection_name = 'Pizza', database_name = 'Food', documents = dict_list )
 

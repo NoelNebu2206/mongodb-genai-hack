@@ -40,20 +40,16 @@ volume = Volume.from_name(
 MODEL_DIR = "/model"
 
 
-"""@stub.function(image=image,
+@stub.function(image=image,
                 volumes={'/data': volume},
-                #secrets=[modal.Secret.from_name("nomic-key")],
+                secrets=[modal.Secret.from_name("nomic-key")],
                 )
 def get_doc_embeddings(git_contents:[]):
     import os
-    import nomic
+    #import nomic
     from nomic import embed
-    #nomic_key = os.environ["NOMIC_API_KEY"]
-    #cohere_key = os.environ["COHERE_API_KEY"]
-
-    nomic_key = "nk-X4y_DNK3k1YZkMrzSOfkZVnzotSjbqtT32IiGShV-R4"
-    cohere_key = "AtPKXCoEnTZlZdO2ntfu45juRMYkNtAvZdWssjWS"
-
+    nomic_key = os.environ["NOMIC_API_KEY"]
+    cohere_key = os.environ["COHERE_API_KEY"]
     
     nomic.login(nomic_key)
     output = embed.text(
@@ -66,54 +62,35 @@ def get_doc_embeddings(git_contents:[]):
         git_contents[i]['doc_embedding'] = embedding
     print(git_contents[0].keys())
     print(f" len of git_content: {len(git_contents)}")
-    return git_contents"""
+    return git_contents
 
-#                secrets=[modal.Secret.from_name("nomic-key")],
 @stub.function(image=image,
                 volumes={'/data': volume},
+                secrets=[modal.Secret.from_name("nomic-key")],
                 )
-@web_app.post("/git_complete")
-async def get_git_data(request: Request):
-#def get_git_data(github_url='https://github.com/anubhavghildiyal/Backdoor_Attack_DNN.git'):
+def git_clone(github_url='https://github.com/anubhavghildiyal/Backdoor_Attack_DNN.git'):
     import subprocess
     import os
-    import nomic
-    from nomic import embed
+    #import nomic
+    #from nomic import embed
 
-    body = await request.json()
-    github_url = body["website_url"]
-
-    print('AG: inside get_git_data')
-    # Run the git clone command
-    print('AG: starting git clone ')
-
-    subprocess.run(["git", "clone", github_url, 'github_data' ])
-    #clone_dir = 'github_data'
-
-    #git.Repo.clone_from(github_url, clone_dir)
-
+    print(f"AG: Cloning: {github_url}")
     git_content = []
+    subprocess.run(["git", "clone", github_url ,'/data/'+github_url.split('/')[-1] ])
+    
     def read_file_content(directory):
         code_extensions = ['.py', '.js', '.cpp']  # Add more extensions as needed
-        for root, dirs, files in os.walk(directory):
-            
-            
+        for root, dirs, files in os.walk(directory):        
             for file in files:
                 file_path = os.path.join(root, file)
                 _, file_extension = os.path.splitext(file_path)
                 if file_extension in code_extensions:
                     file_dict = {}
                     file_dict['path'] = file_path
-
                     with open(file_path, 'r') as f:
                         file_dict['code'] = f.read()
                         print(f"AG: {read_file_content.__name__} Contents saved for {file_path}:")
                     git_content.append(file_dict)
-                    
-
-    # Usage
-    read_file_content('/data')
-    print(f"nu4m of files read: {len(git_content)}")
     sample_file_data = """
         Once upon a time, in a quaint little town nestled between rolling hills and lush forests, there lived a friendly and adventurous dog named Max. Max was a mix of a Golden Retriever and a Border Collie, which made him both clever and affectionate.
         Max's days were filled with excitement and exploration. He would often roam the town, making friends with everyone he met. His favorite spot was the town square, where he would eagerly greet the townspeople and play with the local children.
@@ -127,28 +104,58 @@ async def get_git_data(request: Request):
     # embeddings = nomicOb.generate_embeddings.remote([sample_file_data]  , embedding_model='nomic-embed-text-v1.5', dimensionality=512, task_type='search_document')
     #embeddings = nomicOb.generate_embeddings.remote([sample_file_data])
 
-    """nomic_key = os.environ["NOMIC_API_KEY"]
-    nomic.login(nomic_key)
+    # nomic_key = os.environ["NOMIC_API_KEY"]
+    # nomic.login(nomic_key)
     
-    output = embed.text(
-        texts=[file['code'] for file in git_content],
-        model='nomic-embed-text-v1.5',
-        task_type='search_document',
-        dimensionality=512,
-    )
+    # output = embed.text(
+    #     texts=[file['code'] for file in git_content],
+    #     model='nomic-embed-text-v1.5',
+    #     task_type='search_document',
+    #     dimensionality=512,
+    # )
 
-    #print(len(output['embeddings']))
-    #print(len(output['embeddings'][0]))
-    for i,embedding in enumerate(output["embeddings"]):
-        git_content[i]['embedding'] = embedding
-    print(f"git_content len: {len(git_content)}")
-    print(git_content[0].keys())"""
-
-    #volume.commit()
+    # print(len(output['embeddings']))
+    # print(len(output['embeddings'][0]))
+    # for i,embedding in enumerate(output["embeddings"]):
+    #     git_content[i]['embedding'] = embedding
+    # print(f"git_content len: {len(git_content)}")
+    # print(git_content[0].keys())
+    subprocess.run(["pwd"])
+    subprocess.run(["cd /pkg"])
+    subprocess.run(["pwd"])
+    breakpoint()
+    read_file_content('/data'+github_url.split('/')[-1])
+    volume.commit()
     
-    print('AG: git clone done')
-    print(git_content)
     return git_content
+
+
+#                secrets=[modal.Secret.from_name("nomic-key")],
+# @stub.function(image=image,
+#                 volumes={'/data': volume},
+#                 )
+@web_app.post("/git_complete")
+async def get_git_data(request: Request):
+    
+    chatbot = CohereChatbot()
+    print('in git_complete endpoint')
+    body = await request.json()
+    print('data recieved...')
+    github_url = body["website_url"]
+    git_contents = git_clone.remote(github_url)
+    print('AG: git clone done')
+    
+    #Pass the code of each file to the LLm to get documentation for the code
+    for i, file in enumerate(git_contents):
+        git_contents[i]['documentation'] = chatbot.generate_documentation.remote(file)
+    git_contents = get_doc_embeddings.remote(git_contents)
+    
+    print(git_contents[0]['code'])
+    print(git_contents[0]['documentation'])
+    #generate_code_embeddings.remote(git_contents)
+    print('AG: done run...')
+    #print(git_content)
+    return git_contents
     
 @stub.function(image=image)
 @asgi_app()
