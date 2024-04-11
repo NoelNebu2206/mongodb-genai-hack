@@ -28,6 +28,7 @@ from generate_documentation import CohereChatbot
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from atlas import AtlasClient
+from NomicCls import NomicEmbeddings
 
 web_app = FastAPI()
 
@@ -35,7 +36,7 @@ volume = Volume.from_name(
     "repo_data", create_if_missing=True
 )
 chatbot = CohereChatbot()
-
+nomicObj = NomicEmbeddings()
 @stub.function(image=image,
                 volumes={'/data': volume},
                 )
@@ -43,28 +44,28 @@ def push_to_db(github_content, repository_name) :
     mongoDbClient =  AtlasClient()
     mongoDbClient.insert_documents.remote(collection_name = "MongoHackCollection", database_name = 'MongoHack', documents = github_content )
 
-@stub.function(image=image,
-                volumes={'/data': volume},
-                secrets=[modal.Secret.from_name("nomic-key")],
-                )
-def get_doc_embeddings(git_contents:[]):
-    import os
-    import nomic
-    from nomic import embed
-    nomic_key = os.environ["NOMIC_API_KEY"]
-    cohere_key = os.environ["COHERE_API_KEY"]
-    nomic.login(nomic_key)
-    output = embed.text(
-        texts=[file['documentation'] for file in git_contents],
-        model='nomic-embed-text-v1.5',
-        task_type='search_document',
-        dimensionality=512,
-    )
-    for i,embedding in enumerate(output["embeddings"]):
-        git_contents[i]['doc_embedding'] = embedding
-    print(git_contents[0].keys())
-    print(f" len of git_content: {len(git_contents)}")
-    return git_contents
+# @stub.function(image=image,
+#                 volumes={'/data': volume},
+#                 secrets=[modal.Secret.from_name("nomic-key")],
+#                 )
+# def get_doc_embeddings(git_contents:[]):
+#     import os
+#     import nomic
+#     from nomic import embed
+#     nomic_key = os.environ["NOMIC_API_KEY"]
+#     cohere_key = os.environ["COHERE_API_KEY"]
+#     nomic.login(nomic_key)
+#     output = embed.text(
+#         texts=[file['documentation'] for file in git_contents],
+#         model='nomic-embed-text-v1.5',
+#         task_type='search_document',
+#         dimensionality=512,
+#     )
+#     for i,embedding in enumerate(output["embeddings"]):
+#         git_contents[i]['doc_embedding'] = embedding
+#     print(git_contents[0].keys())
+#     print(f" len of git_content: {len(git_contents)}")
+#     return git_contents
     
 @web_app.post("/get_git_data")
 async def get_git_data_endpoint(request: Request):
@@ -79,7 +80,8 @@ async def get_git_data_endpoint(request: Request):
     for i, file in enumerate(git_contents):
         git_contents[i]['documentation'] = chatbot.generate_documentation.remote(file)
     print('AG: done generate documentation...')
-    git_contents = get_doc_embeddings.remote(git_contents)
+    git_contents = nomicObj.get_doc_embeddings.remote(git_contents)
+    #git_contents = get_doc_embeddings.remote(git_contents)
     
     repository_name = github_url.split('/')[-1][:-4]
     print(git_contents[0].keys())
