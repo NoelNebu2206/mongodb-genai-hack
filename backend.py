@@ -29,22 +29,19 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from atlas import AtlasClient
 
-#web_app = FastAPI()
+web_app = FastAPI()
 
 volume = Volume.from_name(
     "repo_data", create_if_missing=True
 )
-
+chatbot = CohereChatbot()
 
 @stub.function(image=image,
                 volumes={'/data': volume},
                 )
 def push_to_db(github_content, repository_name) :
-    # dict_list = [
-    #     {"ingredients": "Sauce", "shop": "TJ"},
-    #     {"ingredients": "Cheese", "shop": "Target"}]
     mongoDbClient =  AtlasClient()
-    mongoDbClient.insert_documents.remote(collection_name = repository_name, database_name = 'MongoHack', documents = github_content )
+    mongoDbClient.insert_documents.remote(collection_name = "MongoHackCollection", database_name = 'MongoHack', documents = github_content )
 
 @stub.function(image=image,
                 volumes={'/data': volume},
@@ -69,6 +66,27 @@ def get_doc_embeddings(git_contents:[]):
     print(f" len of git_content: {len(git_contents)}")
     return git_contents
     
+@web_app.post("/get_git_data")
+async def get_git_data_endpoint(request: Request):
+    data = await request.json()
+    github_url = data.get('github_url')
+    if ".git" not in github_url:
+        github_url = github_url + ".git"
+    print('AG: inside get_git_data_endpoint.. redirecting to get_git_data')
+    git_contents = get_git_data.remote(github_url)
+    
+    # Pass the code of each file to the LLm to get documentation for the code
+    for i, file in enumerate(git_contents):
+        git_contents[i]['documentation'] = chatbot.generate_documentation.remote(file)
+    print('AG: done generate documentation...')
+    git_contents = get_doc_embeddings.remote(git_contents)
+    
+    repository_name = github_url.split('/')[-1][:-4]
+    print(git_contents[0].keys())
+    push_to_db.remote(git_contents, repository_name)
+    print('AG: push done...')
+
+
 @stub.function(image=image,
                 volumes={'/data': volume},
                 secrets=[modal.Secret.from_name("nomic-key")],
@@ -78,8 +96,8 @@ def get_git_data(github_url='https://github.com/anubhavghildiyal/Backdoor_Attack
     import os
     import nomic
     from nomic import embed
-    
-    print('AG: inside get_git_data')
+
+    print('AG: inside get_git_data @stub.funtion')
     # Run the git clone command
     print(f'AG: starting git clone {github_url}')
     subprocess.run(f"cd /data && git clone {github_url}", shell=True)
@@ -119,71 +137,78 @@ def get_git_data(github_url='https://github.com/anubhavghildiyal/Backdoor_Attack
     
 
 
-@stub.local_entrypoint()
-def run():
-    import os
-    print('AG: inside local entrypoint...')
+# @stub.local_entrypoint()
+# def run():
+#     import os
+#     print('AG: inside local entrypoint...')
     
-    github_url = "https://github.com/anubhavghildiyal/Backdoor_Attack_DNN.git"
-    github_url = "https://github.com/sidv2001/thinkwell-ai.git"
-    if ".git" not in github_url:
-        github_url = github_url + ".git"
+#     github_url = "https://github.com/anubhavghildiyal/Backdoor_Attack_DNN.git"
+#     github_url = "https://github.com/sidv2001/thinkwell-ai.git"
+#     if ".git" not in github_url:
+#         github_url = github_url + ".git"
     
-    # Call modal function remotely to clone github on volume
-    git_contents = get_git_data.remote(github_url)
-    repository_name = github_url.split('/')[-1][:-4]
+#     # Call modal function remotely to clone github on volume
+#     git_contents = get_git_data.remote(github_url)
+#     repository_name = github_url.split('/')[-1][:-4]
 
-    # Create chatbot instance
-    chatbot = CohereChatbot()
+#     # Create chatbot instance
+#     chatbot = CohereChatbot()
 
-    # Pass the code of each file to the LLm to get documentation for the code
-    for i, file in enumerate(git_contents):
-        git_contents[i]['documentation'] = chatbot.generate_documentation.remote(file)
-    print('AG: done generate documentation...')
-    git_contents = get_doc_embeddings.remote(git_contents)
+#     # Pass the code of each file to the LLm to get documentation for the code
+#     for i, file in enumerate(git_contents):
+#         git_contents[i]['documentation'] = chatbot.generate_documentation.remote(file)
+#     print('AG: done generate documentation...')
+#     git_contents = get_doc_embeddings.remote(git_contents)
     
-    # print(git_contents[0]['code'])
-    # print(git_contents[0]['documentation'])
-    print(git_contents[0].keys())
-    push_to_db.remote(git_contents, repository_name)
-    print('AG: push done...')
-    #generate_code_embeddings.remote(git_contents)
-    print('AG: done run...')
+#     # print(git_contents[0]['code'])
+#     # print(git_contents[0]['documentation'])
+#     print(git_contents[0].keys())
+#     push_to_db.remote(git_contents, repository_name)
+#     print('AG: push done...')
+#     #generate_code_embeddings.remote(git_contents)
+#     print('AG: done run...')
 
-# @web_app.post("/foo")
-# async def foo(request: Request):
-#     body = await request.json()
-#     return body
+
 
 
 # @web_app.get("/bar")
 # async def bar(arg="world"):
 #     return HTMLResponse(f"<h1>Hello Fast {arg}!</h1>")
 
-# @stub.function()
-# @asgi_app()
-# def fastapi_app():
-#     import os
-#     print('AG: starting modal serve @asgi_app...')
-#     github_repo = "https://github.com/anubhavghildiyal/Backdoor_Attack_DNN.git"
-
-#     ##Call modal function remotely to clone github on volume
-#     #git_contents = get_git_data.remote(github_repo)
-#     git_contents = get_git_data.remote()
-
-#     # Create chatbot instance
-#     chatbot = CohereChatbot()
-
-#     #Pass the code of each file to the LLm to get documentation for the code
-#     for i, file in enumerate(git_contents):
-#         git_contents[i]['documentation'] = chatbot.generate_documentation.remote(file)
+@stub.function(image=image,
+                volumes={'/data': volume},
+                secrets=[modal.Secret.from_name("nomic-key")],
+                )
+@asgi_app()
+def fastapi_app():
+    import os
+    print('AG: inside local entrypoint...')
     
-#     git_contents = get_doc_embeddings.remote(git_contents)
+    # github_url = "https://github.com/anubhavghildiyal/Backdoor_Attack_DNN.git"
+    # github_url = "https://github.com/sidv2001/thinkwell-ai.git"
+    # if ".git" not in github_url:
+    #     github_url = github_url + ".git"
+    # print('AG: github url: ', github_url)
+    # # Call modal function remotely to clone github on volume
+    # git_contents = get_git_data.remote(github_url)
+    # print('AG: github url: ', github_url)
+    # repository_name = github_url.split('/')[-1][:-4]
+
+    # Create chatbot instance
     
-#     # print(git_contents[0]['code'])
-#     # print(git_contents[0]['documentation'])
-#     #generate_code_embeddings.remote(git_contents)
-#     print('AG: done run...')
 
+    # # Pass the code of each file to the LLm to get documentation for the code
+    # for i, file in enumerate(git_contents):
+    #     git_contents[i]['documentation'] = chatbot.generate_documentation.remote(file)
+    # print('AG: done generate documentation...')
+    # git_contents = get_doc_embeddings.remote(git_contents)
+    
+    # # print(git_contents[0]['code'])
+    # # print(git_contents[0]['documentation'])
+    # print(git_contents[0].keys())
+    # push_to_db.remote(git_contents, repository_name)
+    print('AG: push done...')
+    #generate_code_embeddings.remote(git_contents)
+    print('AG: done run...')
 
-#     return web_app
+    return web_app
