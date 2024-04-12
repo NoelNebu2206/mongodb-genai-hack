@@ -44,28 +44,24 @@ def push_to_db(github_content, repository_name) :
     mongoDbClient =  AtlasClient()
     mongoDbClient.insert_documents.remote(collection_name = "MongoHackCollection", database_name = 'MongoHack', documents = github_content )
 
-# @stub.function(image=image,
-#                 volumes={'/data': volume},
-#                 secrets=[modal.Secret.from_name("nomic-key")],
-#                 )
-# def get_doc_embeddings(git_contents:[]):
-#     import os
-#     import nomic
-#     from nomic import embed
-#     nomic_key = os.environ["NOMIC_API_KEY"]
-#     cohere_key = os.environ["COHERE_API_KEY"]
-#     nomic.login(nomic_key)
-#     output = embed.text(
-#         texts=[file['documentation'] for file in git_contents],
-#         model='nomic-embed-text-v1.5',
-#         task_type='search_document',
-#         dimensionality=512,
-#     )
-#     for i,embedding in enumerate(output["embeddings"]):
-#         git_contents[i]['doc_embedding'] = embedding
-#     print(git_contents[0].keys())
-#     print(f" len of git_content: {len(git_contents)}")
-#     return git_contents
+@web_app.post("/user_query")
+async def user_query(request: Request):
+    data = await request.json()
+    query = data.get('query')
+    chat_history = data.get('chat_history')
+    query_embeddings = nomicObj.get_query_embeddings.remote(query)
+    # print(len(query_embeddings[0]))
+    # print(query_embeddings[0][:5])
+    rel_docs = [
+    "The quick brown fox jumps over the lazy dog. This sentence is the second one.",
+    "She sells seashells by the seashore. The shells she sells are surely seashells.",
+    "How much wood would a woodchuck chuck if a woodchuck could chuck wood? I bet he'd chuck all the wood he could chuck, if a woodchuck could chuck wood.",
+    "I scream, you scream, we all scream for ice cream. Ice cream is delicious, especially on a hot day.",
+    "It was the best of times, it was the worst of times. It was the age of wisdom, it was the age of foolishness."
+    ]
+    response = chatbot.chat.remote(query, chat_history, rel_docs)
+
+    return {"response": response}
     
 @web_app.post("/get_git_data")
 async def get_git_data_endpoint(request: Request):
@@ -81,7 +77,6 @@ async def get_git_data_endpoint(request: Request):
         git_contents[i]['documentation'] = chatbot.generate_documentation.remote(file)
     print('AG: done generate documentation...')
     git_contents = nomicObj.get_doc_embeddings.remote(git_contents)
-    #git_contents = get_doc_embeddings.remote(git_contents)
     
     repository_name = github_url.split('/')[-1][:-4]
     print(git_contents[0].keys())
@@ -135,47 +130,7 @@ def get_git_data(github_url='https://github.com/anubhavghildiyal/Backdoor_Attack
         As the seasons changed, so did Max's adventures. In the winter, he would frolic in the snow with his squirrel friends, while in the summer, they would swim in the nearby creek and bask in the warm sun.
         Through his adventures, Max taught the townspeople the importance of kindness, friendship, and the joy of exploring the world around them. And so, Max's story became a beloved tale in the town, inspiring everyone to embrace life with the same enthusiasm and curiosity as their furry friend."""
     print('AG: git clone done')
-    return git_content
-    
-
-
-# @stub.local_entrypoint()
-# def run():
-#     import os
-#     print('AG: inside local entrypoint...')
-    
-#     github_url = "https://github.com/anubhavghildiyal/Backdoor_Attack_DNN.git"
-#     github_url = "https://github.com/sidv2001/thinkwell-ai.git"
-#     if ".git" not in github_url:
-#         github_url = github_url + ".git"
-    
-#     # Call modal function remotely to clone github on volume
-#     git_contents = get_git_data.remote(github_url)
-#     repository_name = github_url.split('/')[-1][:-4]
-
-#     # Create chatbot instance
-#     chatbot = CohereChatbot()
-
-#     # Pass the code of each file to the LLm to get documentation for the code
-#     for i, file in enumerate(git_contents):
-#         git_contents[i]['documentation'] = chatbot.generate_documentation.remote(file)
-#     print('AG: done generate documentation...')
-#     git_contents = get_doc_embeddings.remote(git_contents)
-    
-#     # print(git_contents[0]['code'])
-#     # print(git_contents[0]['documentation'])
-#     print(git_contents[0].keys())
-#     push_to_db.remote(git_contents, repository_name)
-#     print('AG: push done...')
-#     #generate_code_embeddings.remote(git_contents)
-#     print('AG: done run...')
-
-
-
-
-# @web_app.get("/bar")
-# async def bar(arg="world"):
-#     return HTMLResponse(f"<h1>Hello Fast {arg}!</h1>")
+    return git_contentgit git 
 
 @stub.function(image=image,
                 volumes={'/data': volume},
@@ -183,34 +138,5 @@ def get_git_data(github_url='https://github.com/anubhavghildiyal/Backdoor_Attack
                 )
 @asgi_app()
 def fastapi_app():
-    import os
-    print('AG: inside local entrypoint...')
-    
-    # github_url = "https://github.com/anubhavghildiyal/Backdoor_Attack_DNN.git"
-    # github_url = "https://github.com/sidv2001/thinkwell-ai.git"
-    # if ".git" not in github_url:
-    #     github_url = github_url + ".git"
-    # print('AG: github url: ', github_url)
-    # # Call modal function remotely to clone github on volume
-    # git_contents = get_git_data.remote(github_url)
-    # print('AG: github url: ', github_url)
-    # repository_name = github_url.split('/')[-1][:-4]
-
-    # Create chatbot instance
-    
-
-    # # Pass the code of each file to the LLm to get documentation for the code
-    # for i, file in enumerate(git_contents):
-    #     git_contents[i]['documentation'] = chatbot.generate_documentation.remote(file)
-    # print('AG: done generate documentation...')
-    # git_contents = get_doc_embeddings.remote(git_contents)
-    
-    # # print(git_contents[0]['code'])
-    # # print(git_contents[0]['documentation'])
-    # print(git_contents[0].keys())
-    # push_to_db.remote(git_contents, repository_name)
-    print('AG: push done...')
-    #generate_code_embeddings.remote(git_contents)
-    print('AG: done run...')
-
+    print('AG: starting fastapi app...')
     return web_app

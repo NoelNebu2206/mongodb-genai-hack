@@ -26,3 +26,14 @@ class NomicEmbeddings:
         print(git_contents[0].keys())
         print(f" len of git_content: {len(git_contents)}")
         return git_contents
+
+    @method()
+    def get_query_embeddings(self, query=[], dimensionality=512, embedding_model="nomic-embed-text-v1.5"):
+        from nomic import embed
+        output = embed.text(
+        texts=[query],
+        model=embedding_model,
+        task_type='search_document',
+        dimensionality=dimensionality,
+        )
+        return output["embeddings"]
