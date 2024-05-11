@@ -9,14 +9,11 @@ import nomic
 from nomic import embed
 from dotenv import load_dotenv
 import os
-# from backend import get_git_data,get_doc_embeddings
-# import os
-# from pathlib import Path
-# import modal
-# from modal_image import image, stub
-# from modal import Image, Secret, Stub, web_endpoint, Volume
-# from generate_documentation import CohereChatbot
+import requests
+import json
+from json import JSONEncoder
 
+    
 #import NomicEmbed
 load_dotenv()
 
@@ -25,7 +22,7 @@ nomic.login(nomic_key)
 #from navigation import make_sidebar
 
 #YAML Load
-with open('/Users/lavi./Desktop/MongoDb/mongodb-genai-hack/password.yaml') as file:
+with open('password.yaml') as file:
     config = yaml.load(file, Loader=SafeLoader)
 
 
@@ -46,21 +43,11 @@ authenticator = stauth.Authenticate(
 #     </style>
 #     """, unsafe_allow_html=True)
 
-#Actually what we need to return
-def get_response(user_input):
-    output = embed.text(
-            texts=[user_input],
-            model='nomic-embed-text-v1.5',
-            task_type='search_document',
-            dimensionality=512,
-            )
-    queryResponder=QueryResponder()
-    llm_output=queryResponder.generate_response(output,chat_history)
-    #return "Test output long to check generation"
-    return llm_output
+
 #authenticator
 authenticator.login()
 
+modal_backend_server = "https://yogyagit--mongotest-fastapi-app-dev.modal.run"
 #session
 if st.session_state["authentication_status"]:
     #hide_sidebar()
@@ -82,26 +69,28 @@ if st.session_state["authentication_status"]:
     if "github.com" not in website_url:
         st.info("Please enter a Git repo link to continue")
     else:
-        #gitlink sent from here
-        # st.info("Please be patient while we process the data.")
-        # sleep(0.9)
-        # git_contents = get_git_data.remote(website_url)
-        # chatbot = CohereChatbot()
-        # for i, file in enumerate(git_contents):
-        #     git_contents[i]['documentation'] = chatbot.generate_documentation.remote(file)
-    
-        # git_contents = get_doc_embeddings.remote(git_contents)
-
+        # Data to be sent
+        data = {
+            "github_url": website_url
+        }
+        requests.post(modal_backend_server + '/get_git_data', json=data)
+        
         user_query=st.chat_input("Type your question here...")
         
         if "chat_history" not in st.session_state:
-            st.session_state.chat_history=[AIMessage(content="Hello, I am a Bot. How can I help you today ?")]
+            #st.session_state.chat_history=[AIMessage(content="Hello, I am a Bot. How can I help you today ?")]
+            st.session_state.chat_history=[AIMessage(content="Hello, I am a Bot. How can I help you today ?", name = "CHATBOT")]
         if user_query is not None and user_query!="":
-           
-            #response=get_response(user_query)
-            response=get_response(user_query)
-            st.session_state.chat_history.append(HumanMessage(content=user_query))
-            st.session_state.chat_history.append(AIMessage(content=response))
+            chat_history_dicts = [message.dict() for message in st.session_state.chat_history]
+            #chat_history = str(chat_history_dicts)
+            data = {
+                "user_query": user_query,
+                "chat_history": chat_history_dicts
+            }
+            response = requests.post(modal_backend_server + '/get_response_endpoint', json=data)
+            print(response.json()["response"])
+            st.session_state.chat_history.append(HumanMessage(content=user_query, name = "USER"))
+            st.session_state.chat_history.append(AIMessage(content=str(response.json()["response"]), name = "CHATBOT"))
 
         for message in st.session_state.chat_history:
             if isinstance(message,AIMessage):

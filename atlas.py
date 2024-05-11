@@ -97,7 +97,7 @@ class AtlasClient ():
         return items
 
     @method()
-    def vector_search(self, collection_name, index_name, embedding_vector):
+    def vector_search(self, database_name, collection_name, index_name, embedding_vector):
         """
         Perform a vector search on a specified collection in MongoDB, comparing a given vector 
         to vectors stored in the "documentation" field of documents. Returns documents that match 
@@ -123,7 +123,7 @@ class AtlasClient ():
         username = "ys5250"
         password = "letsHack@1997"  # Example password with special characters
         encoded_username = quote_plus(username)
-        encoded_password = quote_plus(password)
+        encoded_password = quote_plus(password) 
 
         uri = f"mongodb+srv://{encoded_username}:{encoded_password}@mongogenai.d2rck3r.mongodb.net/"
 
@@ -131,38 +131,40 @@ class AtlasClient ():
         self.client = MongoClient(uri)
         print('AtlasClient initialized with URI from environment variable.')
         """
+        database = self.client[database_name]
+        collection = database[collection_name]
 
-        collection = self.database[collection_name]
-        results = collection.aggregate([
+        print(embedding_vector)
+        # Define the pipeline for vector search
+        pipeline = [
             {
-                '$search': {
-                    'index': index_name,
-                    'compound': {
-                        'should': [
-                            {
-                                'vector': {
-                                    'documentation': {
-                                        'query': embedding_vector,
-                                        'path': 'documentation',  # The field in documents containing the vector to compare
-                                        'score': {'boost': {'value': 1}}  # Optional score boosting
-                                    }
-                                }
-                            }
-                        ]
-                    }
+                '$vectorSearch': {
+                    'index': index_name,  # Replace with your actual index name
+                    'path': "doc_embedding",  # The field in the documents containing the vector
+                    'queryVector': embedding_vector,  # Replace with your actual query vector
+                    'numCandidates': 200,  # Adjust as needed for your use case
+                    'limit': 10  # Limit the number of results returned
                 }
             },
             {
                 '$project': {
                     '_id': 1,
-                    'documentation': 1,  # Include the documentation field in the results
-                    'code': 1,  # Include the code field in the results
-                    "search_score": {"$meta": "searchScore"}  # Include the search score in the results
+                    'path': 1,
+                    'documentation': 1,
+                    'code': 1,
+                    'score': {'$meta': 'vectorSearchScore'}
                 }
             }
-        ])
+        ]
+
+        # Run the pipeline on the specified collection in the database
+        results = self.client[database_name][collection_name].aggregate(pipeline)
+
+        # Convert and print the results
+        print(list(results))
 
         return list(results)
+
 
     def close_connection(self):
         self.client.close()

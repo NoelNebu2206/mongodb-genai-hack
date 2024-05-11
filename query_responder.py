@@ -1,19 +1,30 @@
-# Assuming the AtlasClient class is defined in atlas.py
 from atlas import AtlasClient
-# Assuming the CohereChatbot class is defined in generate_documentation.py
 from generate_documentation import CohereChatbot
+from modal import method, enter
+from modal_image import image, stub
 import os
 
+@stub.cls(image = image, gpu="T4", container_idle_timeout=300)
 class QueryResponder:
-    def __init__(self, chatbot, atlas_client):
-        self.chatbot = chatbot
-        self.atlas_client = atlas_client
+    @enter()
+    def enter(self):
+        #cohere_api_key = os.getenv('COHERE_API_KEY')
+        self.chatbot = CohereChatbot()
+        self.atlas_client = AtlasClient()
 
+    @method()
     def generate_response(self, query_embedding, chat_history):
-        relevant_documents = self.atlas_client.vector_search(
+        """relevant_documents = self.atlas_client.vector_search(
             collection_name='your_collection_name',
             index_name='your_index_name',
             embedding_vector=query_embedding
+        )"""
+
+        relevant_documents = self.atlas_client.vector_search.remote(
+        database_name = 'MongoHack',
+        collection_name='MongoHackCollection',
+        index_name='vector_index_github',
+        embedding_vector=query_embedding[0]
         )
 
         context = ""
@@ -33,16 +44,7 @@ class QueryResponder:
         - If the query is unclear or lacks context, ask for clarification or additional information.
         """
 
-        response = self.chatbot.chat(message=context, chat_history=chat_history)
+        response = self.chatbot.chat.remote(message=context, chat_history=chat_history)
+
         return response
 
-if __name__ == "__main__":
-    cohere_api_key = os.getenv('COHERE_API_KEY')
-    chatbot = CohereChatbot(api_key=cohere_api_key)
-    atlas_client = AtlasClient()
-
-    query_responder = QueryResponder(chatbot, atlas_client)
-    query_embedding = [0.1, 0.2, 0.3]  # Example query embedding
-    chat_history = []  # Initialize chat history
-    response = query_responder.generate_response(query_embedding, chat_history)
-    print("Response:", response)
