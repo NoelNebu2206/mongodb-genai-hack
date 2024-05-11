@@ -47,7 +47,8 @@ authenticator = stauth.Authenticate(
 #authenticator
 authenticator.login()
 
-modal_backend_server = "https://yogyagit--mongotest-fastapi-app-dev.modal.run"
+#modal_backend_server = "https://yogyagit--mongotest-fastapi-app-dev.modal.run"
+modal_backend_server = "https://anubhavghildiyal--mongotest-fastapi-app-dev.modal.run"
 #session
 if st.session_state["authentication_status"]:
     #hide_sidebar()
@@ -69,11 +70,13 @@ if st.session_state["authentication_status"]:
     if "github.com" not in website_url:
         st.info("Please enter a Git repo link to continue")
     else:
-        # Data to be sent
-        data = {
-            "github_url": website_url
-        }
-        requests.post(modal_backend_server + '/get_git_data', json=data)
+        if "git_data_fetched" not in st.session_state or not st.session_state["git_data_fetched"]:
+            # Data to be sent
+            data = {
+                "github_url": website_url
+            }
+            requests.post(modal_backend_server + '/get_git_data', json=data)
+            st.session_state["git_data_fetched"] = True
         
         user_query=st.chat_input("Type your question here...")
         
