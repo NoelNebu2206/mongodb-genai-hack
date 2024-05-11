@@ -151,7 +151,7 @@ class AtlasClient ():
                     '_id': 1,
                     'path': 1,
                     'documentation': 1,
-                    'code': 1,
+#                    'code': 1,
                     'score': {'$meta': 'vectorSearchScore'}
                 }
             }

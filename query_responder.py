@@ -45,6 +45,6 @@ class QueryResponder:
         """
 
         response = self.chatbot.chat.remote(message=context, chat_history=chat_history)
-
+        
         return response
 

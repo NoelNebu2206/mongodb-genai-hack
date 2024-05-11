@@ -8,6 +8,7 @@ image = Image.debian_slim(python_version="3.11").pip_install(
      "pymongo==4.6.2",
      "boto3",
      "langchain",
+     "AtlasClient",
      ).apt_install("git", "curl")
     #  .run_commands(
     #      "cd /pkg/modal && echo pwd"
