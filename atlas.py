@@ -97,6 +97,14 @@ class AtlasClient ():
         return items
 
     @method()
+    def empty_collection(self, database_name, collection_name):
+        # Access the database and collection
+        db = self.client[database_name]
+        collection = db[collection_name]
+        collection.delete_many(filter = {})
+        print(f"Collection Emptied'")
+
+    @method()
     def vector_search(self, database_name, collection_name, index_name, embedding_vector):
         """
         Perform a vector search on a specified collection in MongoDB, comparing a given vector 
@@ -143,16 +151,16 @@ class AtlasClient ():
                     'path': "doc_embedding",  # The field in the documents containing the vector
                     'queryVector': embedding_vector,  # Replace with your actual query vector
                     'numCandidates': 200,  # Adjust as needed for your use case
-                    'limit': 10  # Limit the number of results returned
+                    'limit': 1  # Limit the number of results returned
                 }
             },
             {
                 '$project': {
-                    '_id': 1,
+#                    '_id': 1,
                     'path': 1,
                     'documentation': 1,
-#                    'code': 1,
-                    'score': {'$meta': 'vectorSearchScore'}
+                    'code': 1,
+#                    'score': {'$meta': 'vectorSearchScore'}
                 }
             }
         ]

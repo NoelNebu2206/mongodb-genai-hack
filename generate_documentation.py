@@ -25,7 +25,31 @@ class CohereChatbot:
         self.model = 'command-r'
         self.max_tokens = 4000
         self.temperature = 0.5
+    
+    @method()
+    def split_into_sentences(self, text):
+        import re
+        # Regex to split on period followed by space, unless preceded by an abbreviation
+        sentence_endings = r'(?<!\b(?:Mr|Mrs|Dr|Ms)\.)(?<!\bInc\.)(?<!\betc)\.\s'
+        sentences = re.split(sentence_endings, text)
+        # Clean up any leading/trailing whitespace and remove empty entries
+        return [sentence.strip() for sentence in sentences if sentence.strip()]
+    
+    @method()
+    def create_embeddings(self, doc, input_type):
+        model="embed-english-v3.0"
+        query_embeddings = self.client.embed(
+                            model=model,
+                            texts=doc,
+                            input_type=input_type,
+                            embedding_types=['float'])
+        embeddings = query_embeddings.embeddings.float_
 
+        import numpy as np
+        embeddings_array = np.array(embeddings)
+        print(len(embeddings_array))
+        return embeddings_array
+    
     @method()
     def chat(self, message, chat_history=[]):
         response = self.client.chat(

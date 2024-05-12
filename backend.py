@@ -40,7 +40,7 @@ volume = Volume.from_name(
 )
 
 chatbot = CohereChatbot()
-nomicObj = NomicEmbeddings()
+#nomicObj = NomicEmbeddings()
 mongoDbClient =  AtlasClient()
 queryResponder=QueryResponder()
 
@@ -51,6 +51,7 @@ async def get_response(request: Request):
     user_input = data.get('user_query')
     chat_history = data.get("chat_history")
     print(chat_history)
+    #mongoDbClient.empty_collection.remote(collection_name = "MongoHackCollection", database_name = 'MongoHack')
     transcript = []
     for message in chat_history:
         temp_dict = {}
@@ -60,9 +61,12 @@ async def get_response(request: Request):
     print(transcript)
     print("Creating user query embeddings")
     #chat_history = data.get('chat_history')
-    query_embeddings = nomicObj.get_query_embeddings.remote(user_input)
+    #query_embeddings = nomicObj.get_query_embeddings.remote(user_input)
+    query = [user_input]
+    query_embeddings = chatbot.create_embeddings.remote(doc = query, input_type = "search_query").tolist()
+    
     print("Sending the data for response from LLM")
-    llm_output = queryResponder.generate_response.remote(query_embeddings, transcript)
+    llm_output = queryResponder.generate_response.remote(user_input, query_embeddings, transcript)
     print(llm_output)
     return {"response": llm_output}
     
@@ -77,15 +81,22 @@ async def get_git_data_endpoint(request: Request):
     git_contents = get_git_data.remote(github_url)
     print("Sending for creating documentation")
     # Pass the code of each file to the LLm to get documentation for the code
-    for i, file in enumerate(git_contents):
-        git_contents[i]['documentation'] = chatbot.generate_documentation.remote(file)
-    print('AG: done generate documentation...')
-    git_contents = nomicObj.get_doc_embeddings.remote(git_contents)
+    print(git_contents)
     
-    #repository_name = github_url.split('/')[-1][:-4]
-    print(git_contents[0].keys())
+    
+    for i, file in enumerate(git_contents):
+        # Assuming generate_documentation.remote() returns a future or promise
+        future = chatbot.generate_documentation.remote(file)
+        git_contents[i]['documentation'] = [str(future)]
+        print([str(future)])
+        
+    print('AG: done generate documentation...')
+    #git_contents = nomicObj.get_doc_embeddings.remote(git_contents)
+    for i, file in enumerate(git_contents):
+        git_contents[i]['doc_embedding'] = chatbot.create_embeddings.remote(doc = git_contents[i]['documentation'], input_type = "search_document").tolist()
+
     print("Starting the insert process")
-    mongoDbClient.insert_documents.remote(collection_name = "MongoHackCollection", database_name = 'MongoHack', documents = git_contents )
+    mongoDbClient.insert_documents.remote(collection_name = "MongoHackCollection", database_name = 'MongoHack', documents = git_contents)
     print('AG: push done...')
 
 @stub.function(image=image,
@@ -144,7 +155,7 @@ def generate_response(query_embedding):
     relevant_documents = mongoDbClient.vector_search.remote(
         database_name = 'MongoHack',
         collection_name='MongoHackCollection',
-        index_name='search_index_github',
+        index_name='vector_index_github',
         embedding_vector=query_embedding[0]
     )
 

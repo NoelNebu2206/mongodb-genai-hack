@@ -13,7 +13,7 @@ class QueryResponder:
         self.atlas_client = AtlasClient()
 
     @method()
-    def generate_response(self, query_embedding, chat_history):
+    def generate_response(self, user_query, query_embedding, chat_history):
         """relevant_documents = self.atlas_client.vector_search(
             collection_name='your_collection_name',
             index_name='your_index_name',
@@ -27,14 +27,14 @@ class QueryResponder:
         embedding_vector=query_embedding[0]
         )
 
-        context = ""
+        context = "User Query:" + user_query + "Documentation and code obtained using a vector search with the user query:"
         for doc in relevant_documents:
             context += doc['documentation'] + "\n" + doc['code'] + "\n\n"
 
         # Append example query-response pairs and updated instructions
         context += """
         Instructions for generating responses:
-        - You have access to relevant documentation and code content related to the user's query about GitHub codespaces.
+        - You have access to relevant documentation and code content related to the user's query.
         - Generate a detailed and informative response that directly answers the user's query.
         - Use clear and technical language appropriate for a software developer.
         - Provide explanations, examples, or references to the provided documentation and code when necessary to clarify your response.

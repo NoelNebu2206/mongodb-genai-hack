@@ -47,8 +47,8 @@ authenticator = stauth.Authenticate(
 #authenticator
 authenticator.login()
 
-#modal_backend_server = "https://yogyagit--mongotest-fastapi-app-dev.modal.run"
-modal_backend_server = "https://anubhavghildiyal--mongotest-fastapi-app-dev.modal.run"
+modal_backend_server = "https://yogyagit--mongotest-fastapi-app-dev.modal.run"
+#modal_backend_server = "https://anubhavghildiyal--mongotest-fastapi-app-dev.modal.run"
 #session
 if st.session_state["authentication_status"]:
     #hide_sidebar()
@@ -67,7 +67,7 @@ if st.session_state["authentication_status"]:
         st.warning('Please enter valid github link, eg: https://github.com/samplename')
         authenticator.logout()
 
-    if "github.com" not in website_url:
+    if "github.com" not in website_url and "git_data_fetched" not in st.session_state:
         st.info("Please enter a Git repo link to continue")
     else:
         if "git_data_fetched" not in st.session_state or not st.session_state["git_data_fetched"]:
