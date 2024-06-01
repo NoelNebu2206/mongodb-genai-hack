@@ -9,6 +9,7 @@ image = Image.debian_slim(python_version="3.11").pip_install(
      "boto3",
      "langchain",
      "AtlasClient",
+#    "bson",
      ).apt_install("git", "curl")
     #  .run_commands(
     #      "cd /pkg/modal && echo pwd"
